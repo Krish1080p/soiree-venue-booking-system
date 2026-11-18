@@ -4,6 +4,7 @@ const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const money = value => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value || 0));
 const dateLabel = value => new Date(`${String(value).slice(0,10)}T00:00:00`).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const cleanText = value => String(value ?? '').replace(/Â·/g, '·').replace(/â€“/g, '–').replace(/â€”/g, '—');
 
 async function api(url, options = {}) {
   const response = await fetch(url, {
@@ -127,9 +128,9 @@ async function showVenue(id) {
       <form id="bookingForm" class="booking-form">
         <label>Date<input name="bookingDate" type="date" min="${minDate}" required></label>
         <label>Event type<input name="eventType" maxlength="60" placeholder="e.g. Wedding reception" required></label>
-        <div class="full"><label>Choose a time slot</label><div class="slot-options" id="slotOptions">${data.slots.map(s => `<button type="button" class="slot-option" data-slot="${escapeHtml(s.slot_name)}" data-multiplier="${s.price_multiplier}">${escapeHtml(s.label)}<br><small>${money(Number(v.price_per_slot)*Number(s.price_multiplier))}</small></button>`).join('')}</div></div>
+        <div class="full"><label>Choose a time slot</label><div class="slot-options" id="slotOptions">${data.slots.map(s => `<button type="button" class="slot-option" data-slot="${escapeHtml(s.slot_name)}" data-multiplier="${s.price_multiplier}">${escapeHtml(cleanText(s.label))}<br><small>${money(Number(v.price_per_slot)*Number(s.price_multiplier))}</small></button>`).join('')}</div></div>
         <label>Number of guests<input name="guestCount" type="number" min="1" max="${v.capacity}" placeholder="Up to ${v.capacity}" required></label>
-        <label>Event partner (optional)<select name="vendorId"><option value="">No partner selected</option>${data.vendors.map(d => `<option value="${d.id}">${escapeHtml(d.name)} · ${escapeHtml(d.type)}</option>`).join('')}</select></label>
+        <label>Event partner (optional)<select name="vendorId"><option value="" data-price="0">No partner selected</option>${data.vendors.map(d => `<option value="${d.id}" data-price="${d.price_from}">${escapeHtml(d.name)} · ${escapeHtml(d.type)}</option>`).join('')}</select></label>
         <label class="full">Notes for the venue<textarea name="notes" maxlength="1000" placeholder="Any special requests?"></textarea></label>
         <div class="full modal-total"><span>Estimated venue price</span><strong id="bookingTotal">${money(v.price_per_slot)}</strong></div>
         <button class="button button-dark button-full full" type="submit">Send booking request ↗</button>
@@ -138,6 +139,10 @@ async function showVenue(id) {
     openDialog('#bookingDialog');
     const dateInput = $('#bookingForm [name=bookingDate]');
     dateInput.addEventListener('change', () => refreshAvailability(id, dateInput.value));
+    
+    const vendorSelect = $('#bookingForm [name=vendorId]');
+    vendorSelect.addEventListener('change', updateBookingTotal);
+
     $('#slotOptions').addEventListener('click', event => {
       const button = event.target.closest('[data-slot]');
       if (!button || button.disabled) return;
@@ -166,7 +171,15 @@ function updateBookingTotal() {
   const venue = state.selectedVenue;
   const selected = $(`[data-slot="${state.selectedSlot}"]`);
   const multiplier = selected ? Number(selected.dataset.multiplier) : 1;
-  $('#bookingTotal').textContent = money(Number(venue.price_per_slot) * multiplier);
+  let total = Number(venue.price_per_slot) * multiplier;
+
+  const vendorSelect = $('#bookingForm [name=vendorId]');
+  if (vendorSelect && vendorSelect.selectedOptions && vendorSelect.selectedOptions[0]) {
+    const vendorOption = vendorSelect.selectedOptions[0];
+    total += Number(vendorOption.dataset.price || 0);
+  }
+
+  $('#bookingTotal').textContent = money(total);
 }
 async function submitBooking(event) {
   event.preventDefault();
