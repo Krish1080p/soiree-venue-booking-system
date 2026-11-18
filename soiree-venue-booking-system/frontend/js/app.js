@@ -1,4 +1,5 @@
 const state = { user: null, categories: [], venues: [], vendors: [], authMode: 'login', selectedVenue: null, selectedSlot: null, selectedDate: '', toastTimer: null };
+
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const money = value => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value || 0));
@@ -116,7 +117,7 @@ async function showVenue(id) {
   try {
     const data = await api(`/api/venues/${id}`);
     state.selectedVenue = data.venue;
-    state.selectedSlot = null;
+    state.selectedSlot = data.slots && data.slots.length > 0 ? data.slots[0].slot_name : null;
     state.selectedDate = '';
     const v = data.venue;
     const today = new Date();
@@ -128,20 +129,28 @@ async function showVenue(id) {
       <form id="bookingForm" class="booking-form">
         <label>Date<input name="bookingDate" type="date" min="${minDate}" required></label>
         <label>Event type<input name="eventType" maxlength="60" placeholder="e.g. Wedding reception" required></label>
-        <div class="full"><label>Choose a time slot</label><div class="slot-options" id="slotOptions">${data.slots.map(s => `<button type="button" class="slot-option" data-slot="${escapeHtml(s.slot_name)}" data-multiplier="${s.price_multiplier}">${escapeHtml(cleanText(s.label))}<br><small>${money(Number(v.price_per_slot)*Number(s.price_multiplier))}</small></button>`).join('')}</div></div>
-        <label>Number of guests<input name="guestCount" type="number" min="1" max="${v.capacity}" placeholder="Up to ${v.capacity}" required></label>
-        <label>Event partner (optional)<select name="vendorId"><option value="" data-price="0">No partner selected</option>${data.vendors.map(d => `<option value="${d.id}" data-price="${d.price_from}">${escapeHtml(d.name)} · ${escapeHtml(d.type)}</option>`).join('')}</select></label>
+        <div class="full"><label>Choose a time slot</label><div class="slot-options" id="slotOptions">${data.slots.map((s, idx) => `<button type="button" class="slot-option ${idx === 0 ? 'selected' : ''}" data-slot="${escapeHtml(s.slot_name)}" data-multiplier="${s.price_multiplier}">${escapeHtml(cleanText(s.label))}<br><small>${money(Number(v.price_per_slot)*Number(s.price_multiplier))}</small></button>`).join('')}</div></div>
+        <label>Number of guests<input name="guestCount" id="guestCountInput" type="number" min="1" max="${v.capacity}" value="1" placeholder="Up to ${v.capacity}" required></label>
+        <label>Event partner (optional)<select name="vendorId" id="vendorSelect"><option value="" data-price="0" data-unit="">No partner selected</option>${data.vendors.map(d => `<option value="${d.id}" data-price="${d.price_from}" data-unit="${escapeHtml(d.price_unit || '')}">${escapeHtml(d.name)} · ${escapeHtml(d.type)} (${money(d.price_from)} ${escapeHtml(d.price_unit || '')})</option>`).join('')}</select></label>
         <label class="full">Notes for the venue<textarea name="notes" maxlength="1000" placeholder="Any special requests?"></textarea></label>
-        <div class="full modal-total"><span>Estimated venue price</span><strong id="bookingTotal">${money(v.price_per_slot)}</strong></div>
+        <div class="full modal-total"><span>Estimated total price</span><strong id="bookingTotal">${money(Number(v.price_per_slot) * (data.slots[0]?.price_multiplier || 1))}</strong></div>
         <button class="button button-dark button-full full" type="submit">Send booking request ↗</button>
         <p class="form-message full" id="bookingMessage"></p>
       </form>`;
     openDialog('#bookingDialog');
     const dateInput = $('#bookingForm [name=bookingDate]');
     dateInput.addEventListener('change', () => refreshAvailability(id, dateInput.value));
-    
-    const vendorSelect = $('#bookingForm [name=vendorId]');
-    vendorSelect.addEventListener('change', updateBookingTotal);
+
+    const vendorSelect = $('#vendorSelect');
+    if (vendorSelect) {
+      vendorSelect.addEventListener('change', updateBookingTotal);
+    }
+
+    const guestInput = $('#guestCountInput');
+    if (guestInput) {
+      guestInput.addEventListener('input', updateBookingTotal);
+      guestInput.addEventListener('change', updateBookingTotal);
+    }
 
     $('#slotOptions').addEventListener('click', event => {
       const button = event.target.closest('[data-slot]');
@@ -151,6 +160,7 @@ async function showVenue(id) {
       updateBookingTotal();
     });
     $('#bookingForm').addEventListener('submit', submitBooking);
+    updateBookingTotal();
   } catch (error) { toast(error.message, true); }
 }
 async function refreshAvailability(venueId, date) {
@@ -169,17 +179,31 @@ async function refreshAvailability(venueId, date) {
 }
 function updateBookingTotal() {
   const venue = state.selectedVenue;
+  if (!venue) return;
+
   const selected = $(`[data-slot="${state.selectedSlot}"]`);
   const multiplier = selected ? Number(selected.dataset.multiplier) : 1;
   let total = Number(venue.price_per_slot) * multiplier;
 
-  const vendorSelect = $('#bookingForm [name=vendorId]');
-  if (vendorSelect && vendorSelect.selectedOptions && vendorSelect.selectedOptions[0]) {
-    const vendorOption = vendorSelect.selectedOptions[0];
-    total += Number(vendorOption.dataset.price || 0);
+  const guestInput = $('#guestCountInput');
+  const guests = Math.max(1, Number(guestInput?.value) || 1);
+
+  const vendorSelect = $('#vendorSelect') || $('#bookingForm [name=vendorId]');
+  const vendorOption = vendorSelect?.selectedOptions?.[0];
+  if (vendorOption) {
+    let vendorPrice = Number(vendorOption.dataset.price || 0);
+    const unit = (vendorOption.dataset.unit || '').toLowerCase();
+
+    // Only per-plate vendors (e.g. caterers) scale with guest count; all other prices stay flat
+    if (unit.includes('plate')) vendorPrice *= guests;
+
+    total += vendorPrice;
   }
 
-  $('#bookingTotal').textContent = money(total);
+  const totalEl = $('#bookingTotal');
+  if (totalEl) {
+    totalEl.textContent = money(total);
+  }
 }
 async function submitBooking(event) {
   event.preventDefault();
@@ -229,8 +253,13 @@ async function openAdmin() {
     const [dashboard, bookings] = await Promise.all([api('/api/admin/dashboard'),api('/api/bookings/admin/all')]);
     const s = dashboard.stats;
     $('#adminContent').innerHTML = `<div class="modal-kicker">SOIRÉE CONTROL ROOM</div><h2>Admin dashboard</h2>
-      <div class="admin-stats"><div class="stat"><small>Active venues</small><strong>${s.venues}</strong></div><div class="stat"><small>Total bookings</small><strong>${s.bookings}</strong></div><div class="stat"><small>Customers</small><strong>${s.customers}</strong></div><div class="stat"><small>Pending</small><strong>${s.pending}</strong></div></div>
-      <p class="muted">Confirmed booking value: <strong>${money(s.revenue)}</strong></p>
+      <div class="admin-stats">
+        <div class="stat"><small>Active venues</small><strong>${s.venues}</strong></div>
+        <div class="stat"><small>Total bookings</small><strong>${s.bookings}</strong></div>
+        <div class="stat"><small>Customers</small><strong>${s.customers}</strong></div>
+        <div class="stat"><small>Pending</small><strong>${s.pending}</strong></div>
+        <div class="stat" style="border-left: 2px solid var(--accent); padding-left: 12px;"><small>Confirmed Revenue</small><strong style="color: var(--accent);">${money(s.revenue)}</strong></div>
+      </div>
       <h3 style="font:20px var(--serif)">Booking requests</h3><div class="table-scroll"><table class="admin-table"><thead><tr><th>EVENT</th><th>CUSTOMER</th><th>DATE</th><th>VALUE</th><th>STATUS</th></tr></thead><tbody>
       ${bookings.bookings.map(b => `<tr><td>${escapeHtml(b.venue_name)}</td><td>${escapeHtml(b.customer_name)}</td><td>${dateLabel(b.booking_date)}</td><td>${money(b.total_price)}</td><td><select data-status="${b.id}"><option value="pending" ${b.status==='pending'?'selected':''}>Pending</option><option value="confirmed" ${b.status==='confirmed'?'selected':''}>Confirmed</option><option value="rejected" ${b.status==='rejected'?'selected':''}>Rejected</option><option value="cancelled" ${b.status==='cancelled'?'selected':''}>Cancelled</option></select></td></tr>`).join('')}
       </tbody></table></div><p class="muted">Changing a status updates the booking immediately. Cancelled/rejected slots can be rebooked and are archived automatically.</p>`;
@@ -238,12 +267,12 @@ async function openAdmin() {
   } catch (error) { toast(error.message, true); }
 }
 async function changeBookingStatus(id, status) {
-  try { 
-    await api(`/api/bookings/admin/${id}/status`, { method: 'PATCH', body: JSON.stringify({status}) }); 
-    toast('Booking status updated.'); 
-  } catch (error) { 
-    toast(error.message, true); 
-    openAdmin(); 
+  try {
+    await api(`/api/bookings/admin/${id}/status`, { method: 'PATCH', body: JSON.stringify({status}) });
+    toast('Booking status updated.');
+  } catch (error) {
+    toast(error.message, true);
+    openAdmin();
   }
 }
 
