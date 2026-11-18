@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f4ef">
+  <meta name="description" content="Discover extraordinary venues and book your next event with Soiree.">
+  <title>Soirée — Find your perfect venue</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+  <script src="/js/app.js" defer></script>
+</head>
+<body>
+  <div class="announcement">A better setting for every gathering <span>✦</span> Thoughtfully curated venues</div>
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="Soiree home"><span class="brand-mark">S</span><span>soirée<span class="brand-dot">.</span></span></a>
+    <nav class="main-nav"><a href="#venues">Explore venues</a><a href="#how-it-works">How it works</a><a href="#vendors">Event partners</a></nav>
+    <div class="header-actions"><button class="text-button" id="myBookingsBtn">My bookings</button><button class="button button-dark button-small" id="authBtn">Sign in</button><button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">☰</button></div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow"><span></span> MAKE ROOM FOR THE MOMENT</p>
+        <h1>Every occasion<br>deserves a <em>setting.</em></h1>
+        <p class="hero-sub">Discover distinctive spaces for the celebrations, milestones and ideas that bring people together.</p>
+        <a class="button button-dark" href="#venues">Explore venues <span>↗</span></a>
+        <div class="hero-proof"><div class="proof-avatars"><i>A</i><i>M</i><i>R</i></div><span><strong>Curated spaces.</strong> Memorable gatherings.</span></div>
+      </div>
+      <div class="hero-visual">
+        <img src="https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=1500" alt="Elegant event venue with tables and warm lighting">
+        <div class="image-note"><span>01 / THE ART OF GATHERING</span><strong>Spaces that feel like<br>your kind of special.</strong></div>
+        <div class="floating-stamp">MAKE<br>IT A<br>MOMENT <b>✳</b></div>
+      </div>
+    </section>
+
+    <section class="search-wrap" id="venues">
+      <div class="search-heading"><div><p class="eyebrow">THE RIGHT PLACE STARTS HERE</p><h2>Find your venue</h2></div><span class="muted" id="venueCount">Discover our collection</span></div>
+      <form id="searchForm" class="search-panel">
+        <label class="search-field"><span>SEARCH</span><input id="searchQuery" placeholder="Venue, city or keyword"></label>
+        <label class="search-field"><span>EVENT TYPE</span><select id="categoryFilter"><option value="">All occasions</option></select></label>
+        <label class="search-field"><span>GUESTS</span><input id="guestFilter" type="number" min="1" placeholder="Any size"></label>
+        <label class="search-field"><span>MAX PRICE / SLOT (₹)</span><input id="priceFilter" type="number" min="0" placeholder="No limit"></label>
+        <button class="button button-accent" type="submit">Find a space <span>↗</span></button>
+      </form>
+      <div class="filter-row"><span>EXPLORE BY OCCASION</span><div id="categoryChips" class="chips"></div><label class="sort-control">Sort by <select id="sortFilter"><option value="recommended">Recommended</option><option value="price_asc">Price: low to high</option><option value="price_desc">Price: high to low</option><option value="capacity">Largest capacity</option></select></label></div>
+      <div id="venueGrid" class="venue-grid"><div class="loading">Finding beautiful spaces…</div></div>
+      <div id="emptyState" class="empty-state hidden"><span>✳</span><h3>No venues found</h3><p>Try changing your filters to discover more spaces.</p><button class="button button-outline" id="clearFilters">Clear filters</button></div>
+    </section>
+
+    <section class="story-band" id="how-it-works">
+      <div class="story-image"><img src="https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=1200" alt="Outdoor celebration venue"></div>
+      <div class="story-copy"><p class="eyebrow">A LITTLE LESS PLANNING. A LOT MORE CELEBRATING.</p><h2>From “what if”<br>to <em>“it's perfect.”</em></h2><p>Find a space that fits your vision, choose a date and time, and send your booking request in a few simple steps. Your next great gathering starts here.</p><div class="steps"><div><b>01</b><span><strong>Discover</strong><small>Explore spaces that match your occasion.</small></span></div><div><b>02</b><span><strong>Make it yours</strong><small>Choose a slot and event details.</small></span></div><div><b>03</b><span><strong>Celebrate</strong><small>Track your request from your account.</small></span></div></div></div>
+    </section>
+
+    <section class="vendors-section" id="vendors"><div class="section-title"><div><p class="eyebrow">THE DETAILS THAT MAKE IT YOURS</p><h2>Meet your event partners</h2></div><p>Thoughtful extras, talented people<br>and the finishing touches.</p></div><div id="vendorGrid" class="vendor-grid"></div></section>
+
+    <section class="closing-cta"><p class="eyebrow">YOUR MOMENT IS WAITING</p><h2>Let's make it <em>memorable.</em></h2><a href="#venues" class="button button-light">Find your venue ↗</a></section>
+  </main>
+
+  <footer><a class="brand" href="/"><span class="brand-mark">S</span><span>soirée<span class="brand-dot">.</span></span></a><p>Made for moments worth remembering.</p><span>© <span id="year"></span> Soirée Events</span></footer>
+
+  <dialog id="authDialog" class="modal">
+    <button class="modal-close" data-close aria-label="Close">×</button><div class="modal-kicker">WELCOME TO SOIRÉE</div><h2 id="authTitle">A good moment starts here.</h2>
+    <div class="auth-tabs"><button class="active" data-auth-tab="login">Sign in</button><button data-auth-tab="register">Create account</button></div>
+    <form id="authForm" class="form-stack">
+      <label id="nameWrap" class="hidden">Full name<input name="name" minlength="2" maxlength="120"></label>
+      <label>Email address<input name="email" type="email" required autocomplete="email"></label>
+      <label>Password<input name="password" type="password" required minlength="8" autocomplete="current-password"></label>
+      <label id="phoneWrap" class="hidden">Phone (optional)<input name="phone" maxlength="20"></label>
+      <p class="form-message" id="authMessage"></p><button class="button button-dark button-full" type="submit" id="authSubmit">Sign in</button>
+      <p class="demo-hint">Demo admin: admin@soiree.test / Admin@123</p>
+    </form>
+  </dialog>
+
+  <dialog id="bookingDialog" class="modal modal-wide">
+    <button class="modal-close" data-close aria-label="Close">×</button><div id="bookingContent"></div>
+  </dialog>
+
+  <dialog id="bookingsDialog" class="modal modal-wide">
+    <button class="modal-close" data-close aria-label="Close">×</button><div id="bookingsContent"></div>
+  </dialog>
+
+  <dialog id="adminDialog" class="modal modal-wide">
+    <button class="modal-close" data-close aria-label="Close">×</button><div id="adminContent"></div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
