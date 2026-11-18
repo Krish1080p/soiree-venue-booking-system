@@ -31,9 +31,19 @@ function toast(message, isError = false) {
 function openDialog(id) { const dialog = $(id); if (!dialog.open) dialog.showModal(); }
 function closeDialog(id) { const dialog = $(id); if (dialog.open) dialog.close(); }
 function setAuthUI() {
-  $('#authBtn').textContent = state.user ? `Hi, ${state.user.name.split(' ')[0]}` : 'Sign in';
-  $('#myBookingsBtn').textContent = state.user ? 'My bookings' : 'My bookings';
-  $('#authBtn').onclick = () => state.user ? (state.user.role === 'admin' ? openAdmin() : openBookings()) : openDialog('#authDialog');
+  const authBtn = $('#authBtn');
+  const logoutBtn = $('#logoutBtn');
+
+  if (state.user) {
+    authBtn.textContent = `Hi, ${state.user.name.split(' ')[0]}`;
+    authBtn.onclick = () => state.user.role === 'admin' ? openAdmin() : openBookings();
+    if (logoutBtn) logoutBtn.classList.remove('hidden');
+  } else {
+    authBtn.textContent = 'Sign in';
+    authBtn.onclick = () => openDialog('#authDialog');
+    if (logoutBtn) logoutBtn.classList.add('hidden');
+  }
+  $('#myBookingsBtn').textContent = 'My bookings';
 }
 function authMode(mode) {
   state.authMode = mode;
@@ -82,7 +92,7 @@ function renderVenues() {
   $('#venueCount').textContent = `${state.venues.length} thoughtfully selected ${state.venues.length === 1 ? 'space' : 'spaces'}`;
   $('#venueGrid').innerHTML = state.venues.map(v => `
     <article class="venue-card">
-      <div class="venue-image"><img loading="lazy" src="${escapeHtml(v.image_url || '')}" alt="${escapeHtml(v.name)}" onerror="this.src='https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=900'"><span class="venue-category">${escapeHtml(v.category_name)}</span></div>
+      <div class="venue-image"><img loading="lazy" src="${escapeHtml(v.image_url || '')}" alt="${escapeHtml(v.name)}"><span class="venue-category">${escapeHtml(v.category_name)}</span></div>
       <div class="venue-info">
         <div class="venue-meta"><span>${escapeHtml(v.city)} · Up to ${Number(v.capacity).toLocaleString('en-IN')} guests</span><span class="rating">★ ${Number(v.rating).toFixed(1)}</span></div>
         <h3>${escapeHtml(v.name)}</h3><div class="venue-location">⌖ ${escapeHtml(v.location)}</div>
@@ -113,7 +123,7 @@ async function showVenue(id) {
     $('#bookingContent').innerHTML = `
       <div class="booking-head"><img src="${escapeHtml(v.image_url || '')}" alt=""><div><div class="modal-kicker">${escapeHtml(v.category_name)}</div><h2>${escapeHtml(v.name)}</h2><p>${escapeHtml(v.location)}, ${escapeHtml(v.city)} · Capacity ${Number(v.capacity).toLocaleString('en-IN')}</p></div></div>
       <p class="muted">${escapeHtml(v.description)}</p>
-      <div class="muted" style="margin:14px 0">${(v.amenities || []).map(a => `✓ ${escapeHtml(a)}`).join('　')}</div>
+      <div class="muted" style="margin:14px 0">${(v.amenities || []).map(a => `✓ ${escapeHtml(a)}`).join(' ')}</div>
       <form id="bookingForm" class="booking-form">
         <label>Date<input name="bookingDate" type="date" min="${minDate}" required></label>
         <label>Event type<input name="eventType" maxlength="60" placeholder="e.g. Wedding reception" required></label>
@@ -215,9 +225,22 @@ async function openAdmin() {
   } catch (error) { toast(error.message, true); }
 }
 async function changeBookingStatus(id, status) {
-  try { await api(`/api/bookings/admin/${id}/status`, { method: 'PATCH', body: JSON.stringify({status}) }); toast('Booking status updated.'); }
-  catch (error) { toast(error.message, true); openAdmin(); }
+  try { 
+    await api(`/api/bookings/admin/${id}/status`, { method: 'PATCH', body: JSON.stringify({status}) }); 
+    toast('Booking status updated.'); 
+  } catch (error) { 
+    toast(error.message, true); 
+    openAdmin(); 
+  }
 }
+
+// Dedicated change event listener for admin status selects
+document.addEventListener('change', event => {
+  const statusSelect = event.target.closest('[data-status]');
+  if (statusSelect) {
+    changeBookingStatus(statusSelect.dataset.status, statusSelect.value);
+  }
+});
 
 document.addEventListener('click', event => {
   const book = event.target.closest('[data-book]');
@@ -234,9 +257,8 @@ document.addEventListener('click', event => {
   if (close) close.closest('dialog').close();
   const authTab = event.target.closest('[data-auth-tab]');
   if (authTab) authMode(authTab.dataset.authTab);
-  const status = event.target.closest('[data-status]');
-  if (status) changeBookingStatus(status.dataset.status, status.value);
 });
+
 $('#searchForm').addEventListener('submit', event => { event.preventDefault(); loadVenues(); });
 $('#sortFilter').addEventListener('change', loadVenues);
 $('#clearFilters').addEventListener('click', () => {
@@ -245,6 +267,22 @@ $('#clearFilters').addEventListener('click', () => {
 });
 $('#myBookingsBtn').addEventListener('click', openBookings);
 $('#menuToggle').addEventListener('click', () => $('.main-nav').classList.toggle('open'));
+
+const logoutBtn = $('#logoutBtn');
+if (logoutBtn) {
+  logoutBtn.addEventListener('click', async () => {
+    try {
+      await api('/api/auth/logout', { method: 'POST' });
+      state.user = null;
+      setAuthUI();
+      toast('You have been signed out.');
+      ['#adminDialog', '#bookingsDialog', '#bookingDialog'].forEach(id => closeDialog(id));
+    } catch (error) {
+      toast(error.message, true);
+    }
+  });
+}
+
 $('#authForm').addEventListener('submit', async event => {
   event.preventDefault();
   const form = new FormData(event.currentTarget);

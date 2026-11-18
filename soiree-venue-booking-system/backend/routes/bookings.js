@@ -148,12 +148,17 @@ router.get('/admin/all', requireAdmin, async (req, res, next) => {
 router.patch('/admin/:id/status', requireAdmin, async (req, res, next) => {
   try {
     if (!/^\d+$/.test(req.params.id)) return res.status(400).json({ error: 'Invalid booking id.' });
-    const status = z.enum(['confirmed','rejected','cancelled']).safeParse(req.body.status);
+    
+    // Normalize and validate status input safely
+    const rawStatus = typeof req.body.status === 'string' ? req.body.status.toLowerCase().trim() : '';
+    const status = z.enum(['pending', 'confirmed', 'rejected', 'cancelled']).safeParse(rawStatus);
+    
     if (!status.success) return res.status(400).json({ error: 'Invalid booking status.' });
+    
     const result = await pool.query(
       `UPDATE bookings SET status=$1,updated_at=now()
        WHERE id=$2 RETURNING id,status`,
-      [status.data,req.params.id]
+      [status.data, req.params.id]
     );
     if (!result.rowCount) return res.status(404).json({ error: 'Booking not found.' });
     res.json({ booking: result.rows[0] });
