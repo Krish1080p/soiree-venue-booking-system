@@ -1,6 +1,7 @@
 require('dotenv').config();
 const path = require('path');
 const express = require('express');
+const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
@@ -35,6 +36,26 @@ app.use(helmet({
     }
   }
 }));
+
+const allowedOrigins = [
+  'https://soiree-venue-booking-system-mygb.onrender.com',
+  'https://soiree-venue-booking-system.onrender.com',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://localhost:5500',
+  'http://127.0.0.1:5500'
+];
+
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`Origin ${origin} not allowed by CORS`));
+  },
+  credentials: true
+}));
+
 app.use(express.json({ limit: '32kb' }));
 app.use(cookieParser());
 
