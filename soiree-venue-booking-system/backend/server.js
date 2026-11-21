@@ -13,7 +13,7 @@ const bookingRoutes = require('./routes/bookings');
 const adminRoutes = require('./routes/admin');
 const { notFound, errorHandler } = require('./middleware/errors');
 
-const required = ['DATABASE_URL','JWT_SECRET'];
+const required = ['DATABASE_URL', 'JWT_SECRET'];
 for (const key of required) {
   if (!process.env[key]) throw new Error(`${key} must be configured before starting the server.`);
 }
@@ -43,9 +43,13 @@ app.use(helmet({
   }
 }));
 
+const port = Number(process.env.PORT || 5000);
+
 const allowedOrigins = [
   'https://soiree-venue-booking-system-mygb.onrender.com',
   'https://soiree-venue-booking-system.onrender.com',
+  `http://localhost:${port}`,
+  `http://127.0.0.1:${port}`,
   'http://localhost:3000',
   'http://127.0.0.1:3000',
   'http://localhost:5500',
@@ -90,7 +94,6 @@ app.get('*', (req, res, next) => {
 app.use(notFound);
 app.use(errorHandler);
 
-const port = Number(process.env.PORT || 3000);
 const server = app.listen(port, () => console.log(`Soiree is running on http://localhost:${port}`));
 
 async function shutdown(signal) {
