@@ -7,9 +7,13 @@ const dateLabel = value => new Date(`${String(value).slice(0,10)}T00:00:00`).toL
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const cleanText = value => String(value ?? '').replace(/Â·/g, '·').replace(/â€“/g, '–').replace(/â€”/g, '—');
 
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? ''
+  : 'https://soiree-venue-booking-system.onrender.com';
+
 async function api(url, options = {}) {
-  const response = await fetch(url, {
-    credentials: 'same-origin',
+  const response = await fetch(`${API_BASE}${url}`, {
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
     ...options
   });
