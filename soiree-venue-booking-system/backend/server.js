@@ -21,7 +21,13 @@ if (process.env.JWT_SECRET.length < 32) throw new Error('JWT_SECRET must contain
 
 const app = express();
 app.disable('x-powered-by');
-app.set('trust proxy', process.env.TRUST_PROXY === '1' ? 1 : false);
+
+const shouldTrustProxy =
+  process.env.TRUST_PROXY === '1' ||
+  process.env.NODE_ENV === 'production' ||
+  Boolean(process.env.RENDER);
+app.set('trust proxy', shouldTrustProxy ? 1 : false);
+
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
